@@ -79,7 +79,7 @@ namespace Configuration
                 config = Activator.CreateInstance(type) as ConfigurationBase;
                 if (config != null)
                 {
-                    bool singleCacheFile = false;
+                    //bool singleCacheFile = false;
                     string filename = null;
                     if (node != null)
                     {
@@ -94,11 +94,11 @@ namespace Configuration
                                 {
                                     doc.Load(filename);
                                     node = doc.DocumentElement;
-                                    singleCacheFile = true;
+                                    //singleCacheFile = true;
                                 }
                                 catch (Exception ex)
                                 {
-                                    throw new ConfigurationException("load config file failed");
+                                    throw new ConfigurationException(string.Format("load config file failed:{0}",ex.Message));
                                 }
                             }
                         }
@@ -183,7 +183,7 @@ namespace Configuration
                                 }
                                 catch (Exception ex)
                                 {
-                                    throw new ConfigurationException("load modules failed");
+                                    throw new ConfigurationException(string.Format("load modules failed:{0}",ex.Message));
                                 }
 
                                 if (mod == null)
