@@ -13,73 +13,93 @@ namespace Configuration
     [Serializable]
     public abstract class ConfigurationBase
     {
+        
         static string GetCacheKey(Type type)
         {
             return string.Format("AppConfig-{0}", type.FullName);
         }
 
-        protected static ConfigurationBase GetConfig<T>(XmlNode section)
+        private static System.Web.Caching.Cache _cache;
+
+        protected static ConfigurationBase GetConfig<T>(XmlNode section,bool useCache)
              where T : ConfigurationBase, new()
         {
             Type thisType = typeof(T);
-            return GetConfig(thisType, section);
+            return GetConfig(thisType, section, useCache);
         }
 
+        protected static System.Web.Caching.Cache GetCache()
+        {
+            if (_cache == null)
+            {
+                HttpContext context = HttpContext.Current;
+                if (context != null)
+                {
+                    _cache = context.Cache;
+                }
+                else
+                {
+                    _cache = HttpRuntime.Cache;
+                }
+            }
+            return _cache;
+        }
 
-        protected static T GetConfig<T>(string configKey,string sectionName)
+        protected static T GetConfig<T>(string configKey, string sectionName, bool useCache)
              where T : ConfigurationBase, new()
         {
             Type thisType = typeof(T);
-            ConfigurationBase config = GetConfig(configKey,thisType, sectionName);
+            ConfigurationBase config = GetConfig(configKey,thisType, sectionName, useCache);
             //return GenericHelper.GenericCast<ConfigurationBase, T>(config);
             return (T)config;
         }
 
-        protected static ConfigurationBase GetConfig(string configKey,Type type, string sectionName)
+        protected static ConfigurationBase GetConfig(string configKey,Type type, string sectionName,bool useCache)
         {
             Configuration config = Configuration.GetConfig(sectionName);
 
             string key = GetCacheKey(type);
             ConfigurationBase typeConfig = null;
-            //if (useCache)
-            //{
-            //    typeConfig = MemoryCache.Get(key) as ConfigurationBase;
-            //}
+
+            if (useCache)
+            {
+                typeConfig = GetCache().Get(key) as ConfigurationBase;
+            }
 
             if (typeConfig == null)
             {
                 if (config != null)
                 {
                     XmlNode node = config.GetSection(configKey);
-                    typeConfig = GetConfig(type, node);
+                    typeConfig = GetConfig(type, node,useCache);
                 }
                 else
                 {
                     typeConfig = (ConfigurationBase)Activator.CreateInstance(type);
                     typeConfig.LoadDefaultConfigurations();
-                    //MemoryCache.Max(key, typeConfig);
+                    GetCache().Insert(key,typeConfig);
                 }
             }
             return typeConfig;
         }
 
         protected static ConfigurationBase GetConfig(Type type
-            , XmlNode node)
+            , XmlNode node, bool useCache)
         {
             ConfigurationBase config = null;
             string key = GetCacheKey(type);
 
-            //if (useCache)
-            //{
-            //    config = MemoryCache.Get(key) as ConfigurationBase;
-            //}
+            if (useCache)
+            {
+                config = GetConfig(type, node, useCache); ;
+            }
 
             if (config == null)
             {
                 config = Activator.CreateInstance(type) as ConfigurationBase;
                 if (config != null)
                 {
-                    //bool singleCacheFile = false;
+                    bool singleCacheFile = false;
                     string filename = null;
                     if (node != null)
                     {
@@ -94,7 +114,7 @@ namespace Configuration
                                 {
                                     doc.Load(filename);
                                     node = doc.DocumentElement;
-                                    //singleCacheFile = true;
+                                    singleCacheFile = true;
                                 }
                                 catch (Exception ex)
                                 {
@@ -105,14 +125,14 @@ namespace Configuration
                     }
                     config.LoadDefaultConfigurations();
                     config.LoadValuesFromConfigurationXml(node);
-                    //if (singleCacheFile)
-                    //{
-                    //    MemoryCache.Max(key, config, new CacheDependency(filename));
-                    //}
-                    //else
-                    //{
-                    //    MemoryCache.Max(key, config);
-                    //}
+                    if (singleCacheFile)
+                    {
+                        GetCache().Insert(key, config, new CacheDependency(filename));
+                    }
+                    else
+                    {
+                        GetCache().Insert(key, config);
+                    }
                 }
             }
             return config;
