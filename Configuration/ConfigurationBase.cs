@@ -91,7 +91,7 @@ namespace Configuration
 
             if (useCache)
             {
-                config = GetConfig(type, node, useCache); ;
+                config = GetCache().Get(key) as ConfigurationBase;
             }
 
             if (config == null)
